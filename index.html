@@ -195,6 +195,8 @@ th, td {
               <th data-i18n="propertyType"></th>
               <th data-i18n="location"></th>
               <th data-i18n="units"></th>
+              
+<th id="actionsHeader"></th>
             </tr>
           </thead>
           <tbody id="propertyTable"></tbody>
@@ -405,7 +407,7 @@ function setLanguage(lang) {
   });
 
   if (previous) select.value = previous;
-
+document.getElementById("actionsHeader").textContent = lang === "ar" ? "الإجراءات" : "Actions";
   document.getElementById("language").value = lang;
   localStorage.setItem("aqari-language", lang);
   renderProperties();
@@ -415,9 +417,19 @@ function openModal() {
   document.getElementById("propertyModal").classList.add("open");
 }
 
+
+
 function closeModal() {
   document.getElementById("propertyModal").classList.remove("open");
+  document.getElementById("propertyForm").reset();
+  editingPropertyId = null;
 }
+ {
+  document.getElementById("propertyModal").classList.remove("open");
+  document.getElementById("propertyForm").reset();
+  editingPropertyId = null;
+}
+
 
 function renderProperties() {
   const tbody = document.getElementById("propertyTable");
@@ -451,15 +463,89 @@ function renderProperties() {
       const cell = row.insertCell();
       cell.textContent = value;
     });
+   
+    const actionsCell = row.insertCell();
+
+    const editButton = document.createElement("button");
+    editButton.textContent =
+      currentLanguage === "ar" ? "تعديل" : "Edit";
+    editButton.onclick = () => editProperty(p.id);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent =
+      currentLanguage === "ar" ? "حذف" : "Delete";
+    deleteButton.style.background = "#dc2626";
+    deleteButton.style.margin = "5px";
+    deleteButton.onclick = () => deleteProperty(p.id);
+
+    actionsCell.append(editButton, deleteButton);
+ 
   });
 }
 
+function deleteProperty(id) {
+  const message = currentLanguage === "ar"
+    ? "هل أنت متأكد من حذف هذا العقار؟"
+    : "Are you sure you want to delete this property?";
+
+  if (!confirm(message)) return;
+
+  try {
+    const deleted = AQARI.deleteProperty(id);
+
+    if (!deleted) {
+      alert(currentLanguage === "ar"
+        ? "لم يتم العثور على العقار"
+        : "Property not found");
+      return;
+    }
+
+    properties = AQARI.getProperties();
+    renderProperties();
+
+    alert(currentLanguage === "ar"
+      ? "تم حذف العقار بنجاح"
+      : "Property deleted successfully");
+  } catch (error) {
+    alert(currentLanguage === "ar"
+      ? "حدث خطأ أثناء حذف العقار"
+      : "An error occurred while deleting the property");
+  }
+}
+
+let editingPropertyId = null;
+
+function editProperty(id) {
+  const property = properties.find(p => p.id === id);
+
+  if (!property) {
+    alert(currentLanguage === "ar"
+      ? "لم يتم العثور على العقار"
+      : "Property not found");
+    return;
+  }
+
+  editingPropertyId = id;
+
+  document.getElementById("name").value = property.name;
+  document.getElementById("type").value = property.type;
+  document.getElementById("governorate").value =
+    property.governorate;
+  document.getElementById("city").value = property.city;
+  document.getElementById("address").value = property.address;
+  document.getElementById("units").value = property.units;
+  document.getElementById("notes").value = property.notes || "";
+
+  openModal();
+}
+
+  
 document.getElementById("propertyForm")
   .addEventListener("submit", function(event) {
     event.preventDefault();
 
     const property = {
-      id: crypto.randomUUID(),
+      id: editingPropertyId || crypto.randomUUID(),
       name: document.getElementById("name").value.trim(),
       type: document.getElementById("type").value,
       governorate: document.getElementById("governorate").value,
@@ -469,7 +555,13 @@ document.getElementById("propertyForm")
       notes: document.getElementById("notes").value.trim()
     };
 
-    const updated = [...properties, property];
+    
+const updated = editingPropertyId
+  ? properties.map(p =>
+      p.id === editingPropertyId ? property : p
+    )
+  : [...properties, property];
+
 
     try {
       localStorage.setItem(
@@ -479,6 +571,7 @@ document.getElementById("propertyForm")
       renderProperties();
       closeModal();
       this.reset();
+      editingPropertyId = null;
       alert(translations[currentLanguage].saved);
     } catch (error) {
       alert(currentLanguage === "ar"
