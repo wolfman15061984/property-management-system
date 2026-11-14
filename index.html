@@ -24,17 +24,21 @@ header {
 }
 .logo { font-size: 27px; font-weight: bold; }
 .logo small { font-size: 12px; display: block; }
-select {
-  padding: 10px;
+select, input, textarea {
+  padding: 11px;
   border-radius: 8px;
   border: 1px solid #ccd5e2;
+  width: 100%;
+  font: inherit;
 }
+#language { width: auto; }
 .layout { display: flex; min-height: 85vh; }
 aside {
   width: 235px;
   background: #1d3c67;
   color: white;
   padding: 20px 12px;
+  flex-shrink: 0;
 }
 aside a {
   display: block;
@@ -73,7 +77,9 @@ button {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font: inherit;
 }
+button.secondary { background: #64748b; }
 table {
   width: 100%;
   border-collapse: collapse;
@@ -86,6 +92,38 @@ th, td {
 }
 .table-wrap { overflow-x: auto; }
 .note { color: #64748b; font-size: 13px; }
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #0009;
+  z-index: 10;
+  padding: 15px;
+  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+}
+.modal.open { display: flex; }
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 95vh;
+  overflow-y: auto;
+}
+.field { margin: 15px 0; }
+.field label {
+  display: block;
+  margin-bottom: 7px;
+  font-weight: bold;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
 @media(max-width: 700px) {
   .layout { display: block; }
   aside {
@@ -105,10 +143,7 @@ th, td {
 <body>
 
 <header>
-  <div class="logo">
-    عقاري
-    <small>AQARI</small>
-  </div>
+  <div class="logo">عقاري<small>AQARI</small></div>
   <select id="language" onchange="setLanguage(this.value)">
     <option value="ar">العربية</option>
     <option value="en">English</option>
@@ -132,11 +167,11 @@ th, td {
     <div class="cards">
       <div class="card">
         <p data-i18n="totalProperties"></p>
-        <strong>0</strong>
+        <strong id="propertyCount">0</strong>
       </div>
       <div class="card">
         <p data-i18n="totalUnits"></p>
-        <strong>0</strong>
+        <strong id="unitCount">0</strong>
       </div>
       <div class="card">
         <p data-i18n="collected"></p>
@@ -150,21 +185,19 @@ th, td {
 
     <section id="properties">
       <h2 data-i18n="properties"></h2>
-      <button onclick="showNotice()" data-i18n="addProperty"></button>
+      <button type="button" onclick="openModal()"
+        data-i18n="addProperty"></button>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th data-i18n="propertyName"></th>
+              <th data-i18n="propertyType"></th>
               <th data-i18n="location"></th>
               <th data-i18n="units"></th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td colspan="3" data-i18n="noProperties"></td>
-            </tr>
-          </tbody>
+          <tbody id="propertyTable"></tbody>
         </table>
       </div>
     </section>
@@ -173,17 +206,14 @@ th, td {
       <h2 data-i18n="tenants"></h2>
       <p data-i18n="noTenants"></p>
     </section>
-
     <section id="payments">
       <h2 data-i18n="payments"></h2>
       <p data-i18n="noPayments"></p>
     </section>
-
     <section id="expenses">
       <h2 data-i18n="expenses"></h2>
       <p data-i18n="noExpenses"></p>
     </section>
-
     <section id="reports">
       <h2 data-i18n="reports"></h2>
       <p data-i18n="noReports"></p>
@@ -193,84 +223,272 @@ th, td {
   </main>
 </div>
 
+<div class="modal" id="propertyModal">
+  <div class="modal-content">
+    <h2 data-i18n="addProperty"></h2>
+    <form id="propertyForm">
+      <div class="field">
+        <label data-i18n="propertyName"></label>
+        <input id="name" required maxlength="100">
+      </div>
+      <div class="field">
+        <label data-i18n="propertyType"></label>
+        <select id="type" required>
+          <option value="building" data-i18n="building"></option>
+          <option value="apartment" data-i18n="apartment"></option>
+          <option value="villa" data-i18n="villa"></option>
+          <option value="shop" data-i18n="shop"></option>
+          <option value="office" data-i18n="office"></option>
+          <option value="warehouse" data-i18n="warehouse"></option>
+          <option value="land" data-i18n="land"></option>
+          <option value="other" data-i18n="other"></option>
+        </select>
+      </div>
+      <div class="field">
+        <label data-i18n="governorate"></label>
+        <select id="governorate" required></select>
+      </div>
+      <div class="field">
+        <label data-i18n="city"></label>
+        <input id="city" required maxlength="100">
+      </div>
+      <div class="field">
+        <label data-i18n="address"></label>
+        <input id="address" required maxlength="200">
+      </div>
+      <div class="field">
+        <label data-i18n="units"></label>
+        <input id="units" type="number" min="0"
+          max="100000" value="1" required>
+      </div>
+      <div class="field">
+        <label data-i18n="notes"></label>
+        <textarea id="notes" rows="3" maxlength="1000"></textarea>
+      </div>
+      <div class="actions">
+        <button type="submit" data-i18n="save"></button>
+        <button type="button" class="secondary"
+          onclick="closeModal()" data-i18n="cancel"></button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 const translations = {
   ar: {
-    dashboard: "لوحة التحكم",
-    properties: "العقارات",
-    tenants: "المستأجرون والعقود",
-    payments: "الإيجارات والدفعات",
-    expenses: "المصروفات",
-    reports: "التقارير المالية",
-    welcome: "مرحباً بك في نظام عقاري لإدارة ممتلكاتك",
-    totalProperties: "إجمالي العقارات",
-    totalUnits: "الوحدات العقارية",
-    collected: "الإيجارات المحصلة",
-    outstanding: "الإيجارات المتأخرة",
-    addProperty: "+ إضافة عقار",
-    propertyName: "اسم العقار",
-    location: "الموقع",
-    units: "الوحدات",
-    noProperties: "لم تتم إضافة عقارات بعد",
-    noTenants: "لا توجد عقود مسجلة بعد",
-    noPayments: "لا توجد دفعات مسجلة بعد",
-    noExpenses: "لا توجد مصروفات مسجلة بعد",
-    noReports: "ستظهر التقارير المالية هنا",
-    demo: "نسخة تجريبية للواجهة — لا يتم حفظ البيانات بعد",
-    comingSoon: "سنضيف وظيفة إضافة العقارات في الخطوة التالية"
+    dashboard:"لوحة التحكم",
+    properties:"العقارات",
+    tenants:"المستأجرون والعقود",
+    payments:"الإيجارات والدفعات",
+    expenses:"المصروفات",
+    reports:"التقارير المالية",
+    welcome:"مرحباً بك في نظام عقاري لإدارة ممتلكاتك",
+    totalProperties:"إجمالي العقارات",
+    totalUnits:"الوحدات العقارية",
+    collected:"الإيجارات المحصلة",
+    outstanding:"الإيجارات المتأخرة",
+    addProperty:"+ إضافة عقار",
+    propertyName:"اسم العقار",
+    propertyType:"نوع العقار",
+    location:"الموقع",
+    units:"عدد الوحدات",
+    governorate:"المحافظة",
+    city:"المدينة",
+    address:"العنوان",
+    notes:"ملاحظات",
+    save:"حفظ العقار",
+    cancel:"إلغاء",
+    building:"عمارة",
+    apartment:"شقة",
+    villa:"فيلا",
+    shop:"محل تجاري",
+    office:"مكتب",
+    warehouse:"مستودع",
+    land:"أرض",
+    other:"أخرى",
+    noProperties:"لم تتم إضافة عقارات بعد",
+    noTenants:"لا توجد عقود مسجلة بعد",
+    noPayments:"لا توجد دفعات مسجلة بعد",
+    noExpenses:"لا توجد مصروفات مسجلة بعد",
+    noReports:"ستظهر التقارير المالية هنا",
+    demo:"نسخة تجريبية — البيانات محفوظة في هذا المتصفح فقط",
+    saved:"تم حفظ العقار بنجاح"
   },
   en: {
-    dashboard: "Dashboard",
-    properties: "Properties",
-    tenants: "Tenants & Contracts",
-    payments: "Rent & Payments",
-    expenses: "Expenses",
-    reports: "Financial Reports",
-    welcome: "Welcome to AQARI Property Management",
-    totalProperties: "Total Properties",
-    totalUnits: "Total Units",
-    collected: "Rent Collected",
-    outstanding: "Outstanding Rent",
-    addProperty: "+ Add Property",
-    propertyName: "Property Name",
-    location: "Location",
-    units: "Units",
-    noProperties: "No properties added yet",
-    noTenants: "No contracts recorded yet",
-    noPayments: "No payments recorded yet",
-    noExpenses: "No expenses recorded yet",
-    noReports: "Financial reports will appear here",
-    demo: "Interface demo — data is not saved yet",
-    comingSoon: "We will build Add Property next"
+    dashboard:"Dashboard",
+    properties:"Properties",
+    tenants:"Tenants & Contracts",
+    payments:"Rent & Payments",
+    expenses:"Expenses",
+    reports:"Financial Reports",
+    welcome:"Welcome to AQARI Property Management",
+    totalProperties:"Total Properties",
+    totalUnits:"Total Units",
+    collected:"Rent Collected",
+    outstanding:"Outstanding Rent",
+    addProperty:"+ Add Property",
+    propertyName:"Property Name",
+    propertyType:"Property Type",
+    location:"Location",
+    units:"Number of Units",
+    governorate:"Governorate",
+    city:"City",
+    address:"Address",
+    notes:"Notes",
+    save:"Save Property",
+    cancel:"Cancel",
+    building:"Building",
+    apartment:"Apartment",
+    villa:"Villa",
+    shop:"Commercial Shop",
+    office:"Office",
+    warehouse:"Warehouse",
+    land:"Land",
+    other:"Other",
+    noProperties:"No properties added yet",
+    noTenants:"No contracts recorded yet",
+    noPayments:"No payments recorded yet",
+    noExpenses:"No expenses recorded yet",
+    noReports:"Financial reports will appear here",
+    demo:"Demo — data is stored in this browser only",
+    saved:"Property saved successfully"
   }
 };
 
+const governorates = [
+  ["amman","عمّان","Amman"],
+  ["irbid","إربد","Irbid"],
+  ["zarqa","الزرقاء","Zarqa"],
+  ["balqa","البلقاء","Balqa"],
+  ["madaba","مادبا","Madaba"],
+  ["karak","الكرك","Karak"],
+  ["tafilah","الطفيلة","Tafilah"],
+  ["maan","معان","Ma'an"],
+  ["aqaba","العقبة","Aqaba"],
+  ["mafraq","المفرق","Mafraq"],
+  ["jerash","جرش","Jerash"],
+  ["ajloun","عجلون","Ajloun"]
+];
+
 let currentLanguage = "ar";
+let properties = [];
+
+try {
+  const stored = JSON.parse(
+    localStorage.getItem("aqari-properties") || "[]"
+  );
+  if (Array.isArray(stored)) properties = stored;
+} catch (error) {
+  console.error("Unable to read saved properties", error);
+}
 
 function setLanguage(lang) {
   currentLanguage = lang;
   document.documentElement.lang = lang;
-  document.documentElement.dir =
-    lang === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
 
   document.querySelectorAll("[data-i18n]").forEach(el => {
-    const key = el.getAttribute("data-i18n");
+    const key = el.dataset.i18n;
     el.textContent = translations[lang][key] || key;
   });
 
+  const select = document.getElementById("governorate");
+  const previous = select.value;
+  select.replaceChildren();
+
+  governorates.forEach(g => {
+    const option = document.createElement("option");
+    option.value = g[0];
+    option.textContent = lang === "ar" ? g[1] : g[2];
+    select.appendChild(option);
+  });
+
+  if (previous) select.value = previous;
+
   document.getElementById("language").value = lang;
   localStorage.setItem("aqari-language", lang);
+  renderProperties();
 }
 
-function showNotice() {
-  alert(translations[currentLanguage].comingSoon);
+function openModal() {
+  document.getElementById("propertyModal").classList.add("open");
 }
 
-const savedLanguage =
-  localStorage.getItem("aqari-language");
+function closeModal() {
+  document.getElementById("propertyModal").classList.remove("open");
+}
 
+function renderProperties() {
+  const tbody = document.getElementById("propertyTable");
+  tbody.replaceChildren();
+
+  document.getElementById("propertyCount").textContent =
+    properties.length;
+
+  document.getElementById("unitCount").textContent =
+    properties.reduce((sum, p) => sum + Number(p.units || 0), 0);
+
+  if (properties.length === 0) {
+    const row = tbody.insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 4;
+    cell.textContent = translations[currentLanguage].noProperties;
+    return;
+  }
+
+  properties.forEach(p => {
+    const row = tbody.insertRow();
+    const g = governorates.find(x => x[0] === p.governorate);
+    const values = [
+      p.name,
+      translations[currentLanguage][p.type] || p.type,
+      (g ? g[currentLanguage === "ar" ? 1 : 2] : "") +
+        " - " + p.city,
+      p.units
+    ];
+    values.forEach(value => {
+      const cell = row.insertCell();
+      cell.textContent = value;
+    });
+  });
+}
+
+document.getElementById("propertyForm")
+  .addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const property = {
+      id: crypto.randomUUID(),
+      name: document.getElementById("name").value.trim(),
+      type: document.getElementById("type").value,
+      governorate: document.getElementById("governorate").value,
+      city: document.getElementById("city").value.trim(),
+      address: document.getElementById("address").value.trim(),
+      units: Number(document.getElementById("units").value),
+      notes: document.getElementById("notes").value.trim()
+    };
+
+    const updated = [...properties, property];
+
+    try {
+      localStorage.setItem(
+        "aqari-properties", JSON.stringify(updated)
+      );
+      properties = updated;
+      renderProperties();
+      closeModal();
+      this.reset();
+      alert(translations[currentLanguage].saved);
+    } catch (error) {
+      alert(currentLanguage === "ar"
+        ? "تعذر حفظ العقار في المتصفح"
+        : "Unable to save property in browser");
+    }
+  });
+
+const savedLanguage = localStorage.getItem("aqari-language");
 setLanguage(savedLanguage === "en" ? "en" : "ar");
 </script>
-
 </body>
 </html>
