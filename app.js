@@ -43,3 +43,37 @@ const AQARI = {
     return this.load("aqari-units");
   }
 };
+
+/* AQARI - Edit and Delete Properties */
+
+// تعديل بيانات عقار موجود
+AQARI.updateProperty = function(id, changes) {
+  const properties = this.getProperties();
+  const index = properties.findIndex(p => p.id === id);
+
+  if (index === -1) {
+    return false;
+  }
+
+  properties[index] = {
+    ...properties[index],
+    ...changes,
+    id: properties[index].id
+  };
+
+  this.save("aqari-properties", properties);
+  return true;
+};
+
+// حذف عقار
+AQARI.deleteProperty = function(id) {
+  const properties = this.getProperties();
+  const updated = properties.filter(p => p.id !== id);
+
+  if (updated.length === properties.length) {
+    return false;
+  }
+
+  this.save("aqari-properties", updated);
+  return true;
+};
